@@ -1,0 +1,69 @@
+# Виртуальное окружение
+.venv/
+venv/
+env/
+ENV/
+
+# База данных
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE и редакторы
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Логи и временные файлы
+*.log
+*.pid
+*.seed
+
+# Переменные окружения
+.env
+.env.local
+.env.*.local
+
+# Директории сборки
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Alembic (миграции)
+alembic/versions/*.pyc
+
+# Файлы покрытия тестов
+htmlcov/
+.tox/
+.coverage
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Файлы отладки
+*.pdb
+
+# Файлы отчётов
+*.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# pytype
+.pytype/
+
+# Профилирование
+*.prof
