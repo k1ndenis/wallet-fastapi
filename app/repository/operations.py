@@ -36,5 +36,5 @@ def get_operations_list(
     if date_from:
         query = query.filter(Operation.created_at >= date_from)
     if date_to:
-        query = query.filter(Operation.created_at <= date_from)
+        query = query.filter(Operation.created_at <= date_to)
     return query.all()
