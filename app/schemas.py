@@ -85,3 +85,6 @@ class TransferCreateSchema(BaseModel):
 		if v < 0:
 			raise ValueError("Wallet cannot be negative")
 		return v
+
+class TotalBalance(BaseModel):
+	total_balance: Decimal
