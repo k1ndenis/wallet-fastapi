@@ -2,11 +2,14 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from decimal import Decimal
 
+from app.enum import OperationEnum
 from app.schemas import OperationRequest, OperationResponse
 from app.repository import wallets as wallets_repository
 from app.repository import operations as operations_repository
 from app.models import User
+from app.services.exchange_service import get_exchange_rate
 
 def add_income(db: Session, current_user: User, operation: OperationRequest) -> OperationResponse:
 	if not wallets_repository.is_wallet_exist(db, current_user.id, operation.wallet_name):
@@ -18,7 +21,7 @@ def add_income(db: Session, current_user: User, operation: OperationRequest) -> 
 	operation = operations_repository.create_operation(
 		db=db,
 		wallet_id=wallet.id,
-        type="income",
+        type=OperationEnum.INCOME,
         amount=operation.amount,
         currency=operation.currency,
         category=operation.description,
@@ -42,7 +45,7 @@ def add_expense(db: Session, current_user: User, operation: OperationRequest) ->
 	operation = operations_repository.create_operation(
 		db=db,
 		wallet_id=wallet.id,
-        type="expense",
+        type=OperationEnum.EXPENSE,
         amount=operation.amount,
         currency=operation.currency,
         category=operation.description,
@@ -71,3 +74,54 @@ def get_operations_list(
 	
 	operations = operations_repository.get_operations_list(db, wallets_ids, date_from, date_to)
 	return [OperationResponse.model_validate(operation) for operation in operations]
+
+def transfer_between_wallets(
+    db: Session, user_id: int, from_wallet_id: int, to_wallet_id: int, amount: Decimal
+) -> OperationResponse:
+    from_wallet = wallets_repository.get_wallet_by_id(db, user_id, from_wallet_id)
+    to_wallet = wallets_repository.get_wallet_by_id(db, user_id, to_wallet_id)
+
+    if not from_wallet or not to_wallet:
+        raise HTTPException(status_code=404, detail="Wallet not found")
+    
+    if from_wallet.balance < amount:
+        raise HTTPException(status_code=400, detail=f"Not enough money: {from_wallet.balance} {from_wallet.currency}")
+    
+    exchange_rate = 1.0
+    target_amount = amount
+    if from_wallet.currency != to_wallet.currency:
+        exchange_rate = get_exchange_rate(from_wallet.currency, to_wallet.currency)
+        target_amount = round(amount * exchange_rate, 2)
+    
+    # Списываем с отправителя
+    from_wallet.balance = round(from_wallet.balance - amount, 2)
+    
+    # Зачисляем получателю
+    to_wallet.balance = round(to_wallet.balance + target_amount, 2)
+    
+    # Создаём операцию списания (отправитель)
+    operation_out = operations_repository.create_operation(
+        db=db,
+        wallet_id=from_wallet.id,
+        type=OperationEnum.TRANSFER_OUT,
+        amount=amount,
+        currency=from_wallet.currency,
+        category=f"Transfer to wallet '{to_wallet.name}'",
+    )
+    
+    # Создаём операцию зачисления (получатель)
+    operation_in = operations_repository.create_operation(
+        db=db,
+        wallet_id=to_wallet.id,
+        type=OperationEnum.TRANSFER_IN,
+        amount=target_amount,
+        currency=to_wallet.currency,
+        category=f"Transfer from wallet '{from_wallet.name}'",
+    )
+    
+    db.add(from_wallet)
+    db.add(to_wallet)
+    db.commit()
+    
+    # Возвращаем операцию списания (или можно объединить)
+    return OperationResponse.model_validate(operation_out)
