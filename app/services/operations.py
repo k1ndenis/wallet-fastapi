@@ -12,68 +12,68 @@ from app.models import User
 from app.services.exchange_service import get_exchange_rate
 
 def add_income(db: Session, current_user: User, operation: OperationRequest) -> OperationResponse:
-	if not wallets_repository.is_wallet_exist(db, current_user.id, operation.wallet_name):
-		raise HTTPException(
-			status_code=404,
-			detail=f"Wallet: '{operation.wallet_name}' not found"
-		)
-	wallet = wallets_repository.add_income(db, current_user.id, operation.wallet_name, operation.amount)
-	operation = operations_repository.create_operation(
-		db=db,
-		wallet_id=wallet.id,
+    if not wallets_repository.is_wallet_exist(db, current_user.id, operation.wallet_name):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Wallet: '{operation.wallet_name}' not found"
+        )
+    wallet = wallets_repository.add_income(db, current_user.id, operation.wallet_name, operation.amount)
+    operation = operations_repository.create_operation(
+        db=db,
+        wallet_id=wallet.id,
         type=OperationEnum.INCOME,
         amount=operation.amount,
         currency=operation.currency,
         category=operation.description,
-	)
-	db.commit()
-	return OperationResponse.model_validate(operation)
+    )
+    db.commit()
+    return OperationResponse.model_validate(operation)
 
 def add_expense(db: Session, current_user: User, operation: OperationRequest) -> OperationResponse:
-	if not wallets_repository.is_wallet_exist(db, current_user.id, operation.wallet_name):
-		raise HTTPException(
-			status_code=404,
-			detail=f"Wallet '{operation.wallet_name}' not found"
-		)
-	wallet = wallets_repository.get_wallet_balance_by_name(db, current_user.id, operation.wallet_name)
-	if wallet.balance < operation.amount:
-		raise HTTPException(
-			status_code=400,
-			detail=f"Insufficient funds. Availible: {wallet.balance}"
-		)
-	wallet = wallets_repository.add_expense(db, current_user.id, wallet_name=operation.wallet_name, amount=operation.amount)
-	operation = operations_repository.create_operation(
-		db=db,
-		wallet_id=wallet.id,
+    if not wallets_repository.is_wallet_exist(db, current_user.id, operation.wallet_name):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Wallet '{operation.wallet_name}' not found"
+        )
+    wallet = wallets_repository.get_wallet_balance_by_name(db, current_user.id, operation.wallet_name)
+    if wallet.balance < operation.amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient funds. Availible: {wallet.balance}"
+        )
+    wallet = wallets_repository.add_expense(db, current_user.id, wallet_name=operation.wallet_name, amount=operation.amount)
+    operation = operations_repository.create_operation(
+        db=db,
+        wallet_id=wallet.id,
         type=OperationEnum.EXPENSE,
         amount=operation.amount,
         currency=operation.currency,
         category=operation.description,
-	)
-	db.commit()
-	return OperationResponse.model_validate(operation)
+    )
+    db.commit()
+    return OperationResponse.model_validate(operation)
 
 def get_operations_list(
-	db: Session,
-	current_user: User,
-	wallet_id: int | None = None,
-	date_from: datetime | None = None,
-	date_to: datetime | None = None
+    db: Session,
+    current_user: User,
+    wallet_id: int | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None
 ) -> list[OperationResponse]:
-	if wallet_id:
-		wallet = wallets_repository.get_wallet_by_id(db, current_user.id, wallet_id)
-		if wallet is None:
-			raise HTTPException(
-				status_code=404,
-				detail=f"Wallet '{wallet_id}' not found"
-			)
-		wallets_ids = [wallet_id]
-	else:
-		wallets = wallets_repository.get_all_wallets(db, current_user.id)
-		wallets_ids = [w.id for w in wallets]
-	
-	operations = operations_repository.get_operations_list(db, wallets_ids, date_from, date_to)
-	return [OperationResponse.model_validate(operation) for operation in operations]
+    if wallet_id:
+        wallet = wallets_repository.get_wallet_by_id(db, current_user.id, wallet_id)
+        if wallet is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Wallet '{wallet_id}' not found"
+            )
+        wallets_ids = [wallet_id]
+    else:
+        wallets = wallets_repository.get_all_wallets(db, current_user.id)
+        wallets_ids = [w.id for w in wallets]
+    
+    operations = operations_repository.get_operations_list(db, wallets_ids, date_from, date_to)
+    return [OperationResponse.model_validate(operation) for operation in operations]
 
 def transfer_between_wallets(
     db: Session, user_id: int, from_wallet_id: int, to_wallet_id: int, amount: Decimal
@@ -93,35 +93,22 @@ def transfer_between_wallets(
         exchange_rate = get_exchange_rate(from_wallet.currency, to_wallet.currency)
         target_amount = round(amount * exchange_rate, 2)
     
-    # Списываем с отправителя
     from_wallet.balance = round(from_wallet.balance - amount, 2)
     
-    # Зачисляем получателю
     to_wallet.balance = round(to_wallet.balance + target_amount, 2)
     
-    # Создаём операцию списания (отправитель)
-    operation_out = operations_repository.create_operation(
+    operation = operations_repository.create_operation(
         db=db,
         wallet_id=from_wallet.id,
-        type=OperationEnum.TRANSFER_OUT,
+        type=OperationEnum.TRANSFER,
         amount=amount,
         currency=from_wallet.currency,
         category=f"Transfer to wallet '{to_wallet.name}'",
     )
     
-    # Создаём операцию зачисления (получатель)
-    operation_in = operations_repository.create_operation(
-        db=db,
-        wallet_id=to_wallet.id,
-        type=OperationEnum.TRANSFER_IN,
-        amount=target_amount,
-        currency=to_wallet.currency,
-        category=f"Transfer from wallet '{from_wallet.name}'",
-    )
-    
     db.add(from_wallet)
     db.add(to_wallet)
+    db.add(operation)
     db.commit()
     
-    # Возвращаем операцию списания (или можно объединить)
-    return OperationResponse.model_validate(operation_out)
+    return OperationResponse.model_validate(operation)

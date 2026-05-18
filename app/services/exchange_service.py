@@ -1,5 +1,8 @@
 from decimal import Decimal
 from typing import Dict, Tuple
+from urllib import response
+
+import requests
 
 from app.enum import CurrencyEnum
 
@@ -13,4 +16,15 @@ FALLBACK_RATES: Dict[Tuple[str, str], Decimal] = {
 }
 
 def get_exchange_rate(base: CurrencyEnum, target: CurrencyEnum) -> Decimal:
-    return FALLBACK_RATES.get((base, target), Decimal(1))
+    url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/{base}"
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        base_map = data.get(base, {})
+        rate = base_map.get()(target)
+        
+        if rate is not None and isinstance(rate, (int, float)):
+            return Decimal(rate)
+    except Exception:
+        return FALLBACK_RATES.get((base, target), Decimal(1))
