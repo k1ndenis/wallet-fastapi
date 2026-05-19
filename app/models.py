@@ -11,6 +11,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     login: Mapped[str] = mapped_column(unique=True)
+    hashed_password: Mapped[str] = mapped_column(nullable=False)
 
 class Wallet(Base):
     __tablename__ = "wallets"
