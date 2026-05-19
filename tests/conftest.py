@@ -46,7 +46,36 @@ def client():
 
 @pytest.fixture
 def test_user(db_session):
-    user = User(login="test_user")
+    from app.utils.auth import get_password_hash
+    user = User(login="test_user", hashed_password=get_password_hash("testpass"))
     db_session.add(user)
-    db_session.flush()
+    db_session.commit()
+    db_session.refresh(user)
     return user
+
+@pytest.fixture
+def test_user_with_token(client, test_user):
+    response = client.post(
+        "/api/v1/login",
+        json={"login": "test_user", "password": "testpass"}
+    )
+    assert response.status_code == 200, f"Login failed: {response.text}"
+    token = response.json()["access_token"]
+    return token
+
+@pytest.fixture
+def test_wallet(db_session, test_user):
+    from app.models import Wallet
+    from app.enum import CurrencyEnum
+    from decimal import Decimal
+    
+    wallet = Wallet(
+        name="test_wallet",
+        balance=Decimal('100'),
+        currency=CurrencyEnum.RUB,
+        user_id=test_user.id
+    )
+    db_session.add(wallet)
+    db_session.commit()
+    db_session.refresh(wallet)
+    return wallet

@@ -113,6 +113,7 @@ class TotalBalance(BaseModel):
 
 class LoginRequest(BaseModel):
     login: str
+    password: str
 
 class TokenResponse(BaseModel):
     access_token: str

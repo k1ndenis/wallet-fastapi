@@ -133,3 +133,18 @@ def test_get_operations_list_date_to_only(db_session, client, test_user):
     data = response.json()
     assert len(data) == 1
     assert data[0]["type"] == "income"
+
+def test_get_operations_empty(client, test_user_with_token):
+    response = client.get(
+        "/api/v1/operations",
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+def test_get_operations_filter_invalid_wallet(client, test_user_with_token):
+    response = client.get(
+        "/api/v1/operations?wallet_id=99999",
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 404

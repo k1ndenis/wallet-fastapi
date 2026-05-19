@@ -1,7 +1,7 @@
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import jwt
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -10,12 +10,11 @@ from app.repository import users as users_repository
 
 SECRET_KEY = "your-secret-key-change-this-in-production"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 дней
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 security = HTTPBearer()
 
 def get_password_hash(password: str) -> str:
-    # Обрезаем пароль до 72 байт (ограничение bcrypt)
     password_bytes = password.encode('utf-8')[:72]
     return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode('utf-8')
 
@@ -27,9 +26,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 

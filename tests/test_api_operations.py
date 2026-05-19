@@ -85,3 +85,27 @@ def test_transfer_endpoint_insufficient_funds(db_session, client, test_user):
         }
     )
     assert response.status_code == 400
+
+def test_add_income_zero_amount(client, test_user_with_token, test_wallet):
+    response = client.post(
+        "/api/v1/operations/income",
+        json={"wallet_name": test_wallet.name, "amount": 0, "currency": "rub", "description": "Zero"},
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 422
+
+def test_add_income_wallet_not_found(client, test_user_with_token):
+    response = client.post(
+        "/api/v1/operations/income",
+        json={"wallet_name": "nonexistent", "amount": 100, "currency": "rub", "description": "Test"},
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 404
+
+def test_add_expense_negative_amount(client, test_user_with_token, test_wallet):
+    response = client.post(
+        "/api/v1/operations/expense",
+        json={"wallet_name": test_wallet.name, "amount": -50, "currency": "rub", "description": "Negative"},
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 422

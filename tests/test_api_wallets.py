@@ -97,8 +97,34 @@ def test_get_total_balance_multiple_wallets(db_session, client, test_user):
     data = response.json()
     assert Decimal(data["total_balance"]) == Decimal('150')
 
-def test_get_total_balance_no_wallets(client, test_user):
+def test_get_total_balance_no_wallets(client):
     response = client.get("/api/v1/balance")
     assert response.status_code == 200
     data = response.json()
     assert Decimal(data["total_balance"]) == Decimal('0')
+
+def test_create_wallet_usd(client, test_user_with_token):
+    response = client.post(
+        "/api/v1/wallets",
+        json={"name": "usd_wallet", "initial_balance": 100, "currency": "usd"},
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 200
+    assert response.json()["currency"] == "usd"
+
+def test_create_wallet_negative_balance(client, test_user_with_token):
+    response = client.post(
+        "/api/v1/wallets",
+        json={"name": "neg_wallet", "initial_balance": -50, "currency": "rub"},
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 422
+
+def test_create_wallet_name_too_long(client, test_user_with_token):
+    long_name = "a" * 128
+    response = client.post(
+        "/api/v1/wallets",
+        json={"name": long_name, "initial_balance": 100, "currency": "rub"},
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 422

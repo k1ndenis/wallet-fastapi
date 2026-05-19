@@ -129,3 +129,19 @@ def test_transfer_same_wallet(db_session, client, test_user):
         }
     )
     assert response.status_code == 422
+
+def test_transfer_negative_amount(client, test_user_with_token, test_wallet):
+    response = client.post(
+        "/api/v1/operations/transfer",
+        json={"from_wallet_id": test_wallet.id, "to_wallet_id": test_wallet.id + 1, "amount": -10},
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 422
+
+def test_transfer_same_wallet(client, test_user_with_token, test_wallet):
+    response = client.post(
+        "/api/v1/operations/transfer",
+        json={"from_wallet_id": test_wallet.id, "to_wallet_id": test_wallet.id, "amount": 50},
+        headers={"Authorization": f"Bearer {test_user_with_token}"}
+    )
+    assert response.status_code == 422
