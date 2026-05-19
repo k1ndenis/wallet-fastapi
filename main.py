@@ -7,7 +7,12 @@ from app.api.v1.users import router as users_router
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(
+    title="Wallet API",
+    description="API для управления кошельками и операциями",
+    version="1.0.0",
+    contact={"name": "Denis", "email": "k1ndenis.dev@gmail.com"}
+)
 
 app.include_router(wallets_router, prefix="/api/v1", tags=["wallets"])
 app.include_router(operations_router, prefix="/api/v1", tags=["operatons"])
