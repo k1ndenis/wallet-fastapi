@@ -43,7 +43,14 @@ class CreateWalletRequest(BaseModel):
 		return v
 	
 class UserRequest(BaseModel):
-	login: str = Field(..., max_length=127)
+    login: str = Field(..., max_length=127, min_length=1)
+
+    @field_validator('login')
+    def login_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Login cannot be empty")
+        return v
 
 class UserResponse(UserRequest):
 	model_config = {"from_attributes": True}
